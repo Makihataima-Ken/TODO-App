@@ -6,7 +6,7 @@ from django.shortcuts import redirect, render
 import jwt
 from rest_framework import generics
 
-from AuthRegisterDjango import settings
+from TODOApp import settings
 from .serializers import RegisterSerializer
 from rest_framework.permissions import AllowAny
 
