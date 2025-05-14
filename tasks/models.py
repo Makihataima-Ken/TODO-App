@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 
 from TODOApp import settings
 
-class task(models.Model):
+class Task(models.Model):
     class Status(models.TextChoices):
         TODO = 'TD', 'To Do'
         IN_PROGRESS = 'IP', 'In Progress'
@@ -12,7 +12,7 @@ class task(models.Model):
     user = models.ForeignKey(User, on_delete= models.CASCADE)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    dueDate = models.DateField(blank=True)
+    due_date = models.DateField(blank=True)
     # Status field using the enum
     status = models.CharField(
         max_length=2,
