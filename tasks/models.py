@@ -9,7 +9,7 @@ class task(models.Model):
         IN_PROGRESS = 'IP', 'In Progress'
         DONE = 'DN', 'Done'
     
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete= models.CASCADE)
+    user = models.ForeignKey(User, on_delete= models.CASCADE)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     dueDate = models.DateField(blank=True)
