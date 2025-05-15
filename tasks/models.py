@@ -12,7 +12,7 @@ class Task(models.Model):
     user = models.ForeignKey(User, on_delete= models.CASCADE)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    due_date = models.DateField(blank=True)
+    due_date = models.DateField(blank=True,null=True)
     # Status field using the enum
     status = models.CharField(
         max_length=2,
