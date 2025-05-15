@@ -14,6 +14,7 @@
       <h2 class="card-title">Welcome, {{ profile.username }}</h2>
       <p class="card-text text-muted">Email: {{ profile.email }}</p>
       <a href="{% url 'logout_page' %}" class="btn btn-outline-danger mt-3">Logout</a>
+      <a href="{% url 'task_list' %}" class="btn btn-outline mt-3">My To Do List</a>
     </div>
   </div>
 </div>
