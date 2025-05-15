@@ -81,6 +81,35 @@ def task_list(request):
         return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
 
 
+def task_detail(request, pk):
+    # Check authentication
+    if not request.session.get('access_token'):
+        return redirect('login_page')
+
+    headers = {'Authorization': f'Bearer {request.session["access_token"]}'}
+    
+    try:
+        # Make API request for specific task
+        response = requests.get(f"{API_BASE_URL}{pk}/", headers=headers)
+
+        if response.status_code == 200:
+            task = response.json()
+            return render(request, 'tasks/task_detail.html', {'task': task})
+
+        # Handle token expiration
+        if response.status_code == 401 and refresh_access_token(request):
+            return task_detail(request, pk)  # Retry with new token
+
+        # Handle other errors
+        error_message = f"Error {response.status_code}: Unable to fetch task details."
+        if response.status_code == 404:
+            error_message = "Task not found or you don't have permission to view it."
+        return render(request, 'tasks/error.html', {'error': error_message})
+
+    except requests.exceptions.RequestException as e:
+        return render(request, 'tasks/error.html', {'error': f'API connection failed: {str(e)}'})
+
+
 def create_task(request):
     if not request.session.get('access_token'):
         return redirect('login_page')

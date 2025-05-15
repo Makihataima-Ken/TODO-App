@@ -5,6 +5,7 @@ from rest_framework_simplejwt.views import (
 )
 from .views import (
     TaskAPIView,
+    task_detail,
     task_list,
     create_task,
     update_task,
@@ -20,6 +21,7 @@ urlpatterns = [
     
     # HTML Endpoints
     path('tasks/', task_list, name='task_list'),
+    path('tasks/<int:pk>/', task_detail, name='task_detail'),
     path('tasks/create/', create_task, name='create_task'),
     path('tasks/update/<int:pk>/', update_task, name='update_task'),
     path('tasks/delete/<int:pk>/', delete_task, name='delete_task'),
