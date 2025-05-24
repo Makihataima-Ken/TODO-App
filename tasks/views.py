@@ -98,7 +98,7 @@ def task_detail(request, pk):
         if not user_id:
             return redirect('login_page')
 
-        task = Task.objects.get(pk=pk, user_id=user_id)
+        task = Task.objects.get(pk=pk,user_id=user_id)
         serializer = TaskSerializer(task)
         task_data = serializer.data
 
@@ -140,44 +140,39 @@ def create_task(request):
         return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 def update_task(request, pk):
-    if not request.session.get('access_token'):
+    access_token = request.session.get('access_token')
+    if not access_token:
         return redirect('login_page')
 
-    headers = {'Authorization': f'Bearer {request.session["access_token"]}'}
-
     try:
-        response = requests.get(f'{API_BASE_URL}{pk}/', headers=headers)
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('user_id')
 
-        if response.status_code == 401 and refresh_access_token(request):
-            return update_task(request, pk)
+        if not user_id:
+            return redirect('login_page')
 
-        if response.status_code != 200:
-            return render(request, 'tasks/error.html', {'error': f'Task not found. ({response.status_code})'})
+        task = get_object_or_404(Task, pk=pk, user_id=user_id)
 
-        task_data = response.json()
-        form = TaskForm(request.POST or None, initial=task_data)
+        if request.method == 'POST':
+            form = TaskForm(request.POST, instance=task)
+            if form.is_valid():
+                updated_task = form.save()        
+                return redirect('task_list')
+        else:
+            form = TaskForm(instance=task)
+            # Serialize initial task data if needed for the template
+            serializer = TaskSerializer(task)
+            task_data = serializer.data
 
-        if request.method == 'POST' and form.is_valid():
-            try:
-                update_response = requests.put(
-                    f'{API_BASE_URL}{pk}/',
-                    headers={**headers, 'Content-Type': 'application/json'},
-                    data=json.dumps(form.cleaned_data)
-                )
+        return render(request, 'tasks/task_form.html', {
+            'form': form,
+            'task': task_data
+        })
 
-                if update_response.status_code == 200:
-                    return redirect('task_list')
-
-                return render(request, 'tasks/task_form.html', {'form': form, 'errors': update_response.json()})
-
-            except requests.exceptions.RequestException:
-                return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
-
-        return render(request, 'tasks/task_form.html', {'form': form, 'task': task_data})
-
-    except requests.exceptions.RequestException:
-        return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
-
+    except jwt.InvalidTokenError:
+        return render(request, 'tasks/error.html', {'error': 'Invalid or expired token. Please log in again.'})
+    except Exception as e:
+        return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 def delete_task(request, pk):
     if not request.session.get('access_token'):
