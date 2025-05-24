@@ -175,34 +175,34 @@ def update_task(request, pk):
         return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 def delete_task(request, pk):
-    if not request.session.get('access_token'):
+    access_token = request.session.get('access_token')
+    if not access_token:
         return redirect('login_page')
 
-    headers = {'Authorization': f'Bearer {request.session["access_token"]}'}
-
-    if request.method == 'POST':
-        try:
-            response = requests.delete(f'{API_BASE_URL}{pk}/', headers=headers)
-
-            if response.status_code == 204:
-                return redirect('task_list')
-
-            return render(request, 'tasks/error.html', {'error': 'Failed to delete task.'})
-
-        except requests.exceptions.RequestException:
-            return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
-
     try:
-        response = requests.get(f'{API_BASE_URL}{pk}/', headers=headers)
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('user_id')
 
-        if response.status_code == 200:
-            task = response.json()
-            return render(request, 'tasks/task_confirm_delete.html', {'task': task})
+        if not user_id:
+            return redirect('login_page')
 
-        return render(request, 'tasks/error.html', {'error': 'Task not found.'})
+        task = get_object_or_404(Task, pk=pk, user_id=user_id)
 
-    except requests.exceptions.RequestException:
-        return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
+        if request.method == 'POST':
+            task.delete()
+            return redirect('task_list')
+
+        serializer = TaskSerializer(task)
+        task_data = serializer.data
+
+        return render(request, 'tasks/task_confirm_delete.html', {
+            'task': task_data
+        })
+
+    except jwt.InvalidTokenError:
+        return render(request, 'tasks/error.html', {'error': 'Invalid or expired token. Please log in again.'})
+    except Exception as e:
+        return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 
 # ========== Token Refresh Helper ==========
