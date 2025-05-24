@@ -77,6 +77,10 @@ class ProfileView(APIView):
         })
         
 # HTML views for user 
+
+def home_page(request):
+    return render(request, 'accounts/home.html')
+
 def register_page(request):
     if request.method == 'POST':
         # Prepare data to send to API
