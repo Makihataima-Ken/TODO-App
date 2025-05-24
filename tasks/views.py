@@ -109,35 +109,35 @@ def task_detail(request, pk):
     except Exception as e:
         return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
-
 def create_task(request):
-    if not request.session.get('access_token'):
+    access_token = request.session.get('access_token')
+    if not access_token:
         return redirect('login_page')
 
-    form = TaskForm(request.POST or None)
+    try:
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('user_id')
 
-    if request.method == 'POST' and form.is_valid():
-        headers = {
-            'Authorization': f'Bearer {request.session["access_token"]}',
-            'Content-Type': 'application/json'
-        }
+        if not user_id:
+            return redirect('login_page')
 
-        try:
-            response = requests.post(API_BASE_URL, headers=headers, data=json.dumps(form.cleaned_data))
-
-            if response.status_code == 201:
+        if request.method == 'POST':
+            form = TaskForm(request.POST)
+            if form.is_valid():
+                # Create task with the authenticated user
+                task = form.save(commit=False)
+                task.user_id = user_id
+                task.save()
                 return redirect('task_list')
+        else:
+            form = TaskForm()
 
-            if response.status_code == 401 and refresh_access_token(request):
-                return create_task(request)
+        return render(request, 'tasks/task_form.html', {'form': form})
 
-            return render(request, 'tasks/task_form.html', {'form': form, 'errors': response.json()})
-
-        except requests.exceptions.RequestException:
-            return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
-
-    return render(request, 'tasks/task_form.html', {'form': form})
-
+    except jwt.InvalidTokenError:
+        return render(request, 'tasks/error.html', {'error': 'Invalid or expired token. Please log in again.'})
+    except Exception as e:
+        return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 def update_task(request, pk):
     if not request.session.get('access_token'):
