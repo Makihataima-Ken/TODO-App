@@ -87,32 +87,27 @@ def task_list(request):
 
 
 def task_detail(request, pk):
-    # Check authentication
-    if not request.session.get('access_token'):
+    access_token = request.session.get('access_token')
+    if not access_token:
         return redirect('login_page')
 
-    headers = {'Authorization': f'Bearer {request.session["access_token"]}'}
-    
     try:
-        # Make API request for specific task
-        response = requests.get(f"{API_BASE_URL}{pk}/", headers=headers)
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('user_id')
 
-        if response.status_code == 200:
-            task = response.json()
-            return render(request, 'tasks/task_detail.html', {'task': task})
+        if not user_id:
+            return redirect('login_page')
 
-        # Handle token expiration
-        if response.status_code == 401 and refresh_access_token(request):
-            return task_detail(request, pk)  # Retry with new token
+        task = Task.objects.get(pk=pk, user_id=user_id)
+        serializer = TaskSerializer(task)
+        task_data = serializer.data
 
-        # Handle other errors
-        error_message = f"Error {response.status_code}: Unable to fetch task details."
-        if response.status_code == 404:
-            error_message = "Task not found or you don't have permission to view it."
-        return render(request, 'tasks/error.html', {'error': error_message})
+        return render(request, 'tasks/task_detail.html', {'task': task_data})
 
-    except requests.exceptions.RequestException as e:
-        return render(request, 'tasks/error.html', {'error': f'API connection failed: {str(e)}'})
+    except jwt.InvalidTokenError:
+        return render(request, 'tasks/error.html', {'error': 'Invalid or expired token. Please log in again.'})
+    except Exception as e:
+        return render(request, 'tasks/error.html', {'error': f'An error occurred: {str(e)}'})
 
 
 def create_task(request):
