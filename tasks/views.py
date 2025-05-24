@@ -1,10 +1,13 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
+import jwt
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.authentication import JWTAuthentication
+
+from TODOApp import settings
 from .models import Task
 from .forms import TaskForm
 from .serializers import TaskSerializer
@@ -59,26 +62,28 @@ class TaskAPIView(APIView):
 
 API_BASE_URL = 'http://localhost:8000/api/tasks/'
 
+
 def task_list(request):
-    if not request.session.get('access_token'):
+    access_token = request.session.get('access_token')
+    if not access_token:
         return redirect('login_page')
 
-    headers = {'Authorization': f'Bearer {request.session["access_token"]}'}
-
     try:
-        response = requests.get(API_BASE_URL, headers=headers)
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=["HS256"])
+        user_id = payload.get('user_id')  
 
-        if response.status_code == 200:
-            tasks = response.json()
-            return render(request, 'tasks/task_list.html', {'tasks': tasks})
+        if not user_id:
+            return redirect('login_page')
 
-        if response.status_code == 401 and refresh_access_token(request):
-            return task_list(request)
+        tasks = Task.objects.filter(user_id=user_id)
+        serializer = TaskSerializer(tasks, many=True)
+        tasks = serializer.data
 
-        return render(request, 'tasks/error.html', {'error': f"Error {response.status_code}: Unable to fetch tasks."})
+        return render(request, 'tasks/task_list.html', {'tasks': tasks})
 
-    except requests.exceptions.RequestException:
-        return render(request, 'tasks/error.html', {'error': 'API connection failed.'})
+    except jwt.InvalidTokenError:
+        return render(request, 'tasks/error.html', {'error': 'Invalid or expired token. Please log in again.'})
+
 
 
 def task_detail(request, pk):
